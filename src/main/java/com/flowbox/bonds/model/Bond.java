@@ -6,6 +6,8 @@ import lombok.*;
 
 import java.time.LocalDate;
 
+import com.flowbox.bonds.model.User;
+
 @Entity
 @Data
 @NoArgsConstructor
@@ -50,4 +52,8 @@ public class Bond {
     private int capitalization;
 
     private LocalDate createdAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 }

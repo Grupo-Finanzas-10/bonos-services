@@ -1,6 +1,9 @@
 package com.flowbox.bonds.controller;
 
+import com.flowbox.bonds.dto.BondWithUserResponse;
 import com.flowbox.bonds.model.Bond;
+import com.flowbox.bonds.model.User;
+import com.flowbox.bonds.repository.UserRepository;
 import com.flowbox.bonds.service.BondService;
 import com.flowbox.bonds.service.FinancialCalculator;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +15,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @RestController
 @RequestMapping("/api/bonds")
@@ -23,34 +30,119 @@ public class BondController {
 
     private final BondService bondService;
     private final FinancialCalculator calculator;
+    private final UserRepository userRepository;
 
     @GetMapping
-    @Operation(summary = "Obtener todos los bonos", description = "Retorna la lista completa de bonos")
+    @Operation(summary = "Obtener todos los bonos", description = "Retorna la lista de bonos del usuario autenticado")
     public List<Bond> getAll() {
-        return bondService.findAll();
+        // Obtener el usuario autenticado
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        
+        return bondService.findByUser(user);
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener bono por ID", description = "Retorna un bono específico por su ID")
+    @Operation(summary = "Obtener bono por ID", description = "Retorna un bono específico por su ID del usuario autenticado")
     public Optional<Bond> getById(@PathVariable Long id) {
-        return bondService.findById(id);
+        // Obtener el usuario autenticado
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        
+        return bondService.findByIdAndUser(id, user);
+    }
+
+    @GetMapping("/user/{userId}")
+    @Operation(summary = "Obtener bonos por ID de usuario", description = "Retorna todos los bonos de un usuario específico por su ID")
+    public List<BondWithUserResponse> getBondsByUserId(@PathVariable Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        
+        return bondService.findByUser(user)
+                .stream()
+                .map(BondWithUserResponse::fromBond)
+                .collect(Collectors.toList());
+    }
+
+    @GetMapping("/user/username/{username}")
+    @Operation(summary = "Obtener bonos por username", description = "Retorna todos los bonos de un usuario específico por su username")
+    public List<BondWithUserResponse> getBondsByUsername(@PathVariable String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        
+        return bondService.findByUser(user)
+                .stream()
+                .map(BondWithUserResponse::fromBond)
+                .collect(Collectors.toList());
+    }
+
+    @GetMapping("/all")
+    @Operation(summary = "Obtener todos los bonos", description = "Retorna todos los bonos del sistema con ID de usuario (solo para administradores)")
+    public List<BondWithUserResponse> getAllBonds() {
+        return bondService.findAll()
+                .stream()
+                .map(BondWithUserResponse::fromBond)
+                .collect(Collectors.toList());
     }
 
     @PostMapping
-    @Operation(summary = "Crear nuevo bono", description = "Crea un nuevo bono en el sistema")
+    @Operation(summary = "Crear nuevo bono", description = "Crea un nuevo bono en el sistema asociado al usuario autenticado")
     public Bond create(@Valid @RequestBody Bond bond) {
+        // Obtener el usuario autenticado
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        
         bond.setCreatedAt(LocalDate.now());
+        bond.setUser(user);
         return bondService.save(bond);
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Actualizar bono", description = "Actualiza un bono específico del usuario autenticado")
     public Bond update(@PathVariable Long id, @Valid @RequestBody Bond bond) {
+        // Obtener el usuario autenticado
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        
+        // Verificar que el bono pertenece al usuario
+        Optional<Bond> existingBond = bondService.findByIdAndUser(id, user);
+        if (existingBond.isEmpty()) {
+            throw new RuntimeException("Bono no encontrado o no tienes permisos para modificarlo");
+        }
+        
         bond.setId(id);
+        bond.setUser(user);
         return bondService.save(bond);
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Eliminar bono", description = "Elimina un bono específico del usuario autenticado")
     public void delete(@PathVariable Long id) {
+        // Obtener el usuario autenticado
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        
+        // Verificar que el bono pertenece al usuario
+        Optional<Bond> existingBond = bondService.findByIdAndUser(id, user);
+        if (existingBond.isEmpty()) {
+            throw new RuntimeException("Bono no encontrado o no tienes permisos para eliminarlo");
+        }
+        
         bondService.delete(id);
     }
 

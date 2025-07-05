@@ -1,6 +1,7 @@
 package com.flowbox.bonds.service;
 
 import com.flowbox.bonds.model.Bond;
+import com.flowbox.bonds.model.User;
 import com.flowbox.bonds.repository.BondRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,5 +28,13 @@ public class BondService {
 
     public void delete(Long id) {
         bondRepository.deleteById(id);
+    }
+
+    public List<Bond> findByUser(User user) {
+        return bondRepository.findByUser(user);
+    }
+
+    public Optional<Bond> findByIdAndUser(Long id, User user) {
+        return bondRepository.findByIdAndUser(id, user);
     }
 }
