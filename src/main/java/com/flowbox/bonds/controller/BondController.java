@@ -3,6 +3,9 @@ package com.flowbox.bonds.controller;
 import com.flowbox.bonds.model.Bond;
 import com.flowbox.bonds.service.BondService;
 import com.flowbox.bonds.service.FinancialCalculator;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -14,22 +17,27 @@ import java.util.*;
 @RequestMapping("/api/bonds")
 @CrossOrigin(origins = "*")
 @RequiredArgsConstructor
+@Tag(name = "Bonds", description = "API para gestión de bonos")
+@SecurityRequirement(name = "bearerAuth")
 public class BondController {
 
     private final BondService bondService;
     private final FinancialCalculator calculator;
 
     @GetMapping
+    @Operation(summary = "Obtener todos los bonos", description = "Retorna la lista completa de bonos")
     public List<Bond> getAll() {
         return bondService.findAll();
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Obtener bono por ID", description = "Retorna un bono específico por su ID")
     public Optional<Bond> getById(@PathVariable Long id) {
         return bondService.findById(id);
     }
 
     @PostMapping
+    @Operation(summary = "Crear nuevo bono", description = "Crea un nuevo bono en el sistema")
     public Bond create(@Valid @RequestBody Bond bond) {
         bond.setCreatedAt(LocalDate.now());
         return bondService.save(bond);
