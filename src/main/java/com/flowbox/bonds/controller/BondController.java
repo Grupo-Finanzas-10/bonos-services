@@ -1,6 +1,8 @@
 package com.flowbox.bonds.controller;
 
 import com.flowbox.bonds.dto.BondWithUserResponse;
+import com.flowbox.bonds.dto.SimulationResponse;
+import com.flowbox.bonds.dto.FlujoCajaResponse;
 import com.flowbox.bonds.model.Bond;
 import com.flowbox.bonds.model.User;
 import com.flowbox.bonds.repository.UserRepository;
@@ -147,7 +149,30 @@ public class BondController {
     }
 
     @PostMapping("/simulate")
-    public Map<String, Double> simulate(@RequestBody Bond bond, @RequestParam double tasaOportunidad) {
+    @Operation(summary = "Simular cálculos financieros", description = "Calcula TCEA, TREA, Duración, Convexidad y Precio Máximo del bono")
+    public SimulationResponse simulate(@RequestBody Bond bond, @RequestParam double tasaOportunidad) {
+        double tcea = calculator.calcularTCEA(bond);
+        double trea = calculator.calcularTREA(bond);
+        double duracion = calculator.calcularDuracion(bond);
+        double convexidad = calculator.calcularConvexidad(bond);
+        double precioMaximo = calculator.calcularPrecioMaximo(bond, tasaOportunidad);
+        double duracionModificada = calculator.calcularDuracionModificada(bond);
+        
+        return SimulationResponse.fromBond(bond, tcea, trea, duracion, convexidad, precioMaximo, duracionModificada);
+    }
+
+    @PostMapping("/simulate/cronograma")
+    @Operation(summary = "Generar cronograma de flujos", description = "Genera el cronograma completo de flujos de caja del bono")
+    public List<FlujoCajaResponse> generarCronograma(@RequestBody Bond bond) {
+        return calculator.generarCronogramaFlujos(bond)
+                .stream()
+                .map(FlujoCajaResponse::fromFlujoCaja)
+                .collect(Collectors.toList());
+    }
+
+    @PostMapping("/simulate/basic")
+    @Operation(summary = "Simulación básica", description = "Calcula solo los valores financieros básicos (formato original)")
+    public Map<String, Double> simulateBasic(@RequestBody Bond bond, @RequestParam double tasaOportunidad) {
         Map<String, Double> result = new HashMap<>();
         result.put("TCEA", calculator.calcularTCEA(bond));
         result.put("TREA", calculator.calcularTREA(bond));
